@@ -108,6 +108,7 @@ def format(df):
     It converts object columns to string, it checks and deletes fully duplicated rows, 
     checks for missing values and drops columns with more than 80% missing 
     and if the dataframe contains '_id' columns it checks for duplicated id, and if True it removes the duplicated row.
+    This functions can handle any possible dataframe given, so it is for automated use.
     """
     for col in df.select_dtypes(include='object'):
         df[col] = df[col].astype(str)
