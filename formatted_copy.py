@@ -1,13 +1,12 @@
 import pandas as pd
-import asyncio
 import os
 import json
-import pyspark
 import time
+import geopandas as gpd
+from shapely.geometry import Point
 from pyspark.sql import SparkSession
+from pyspark.sql.dataframe import DataFrame
 from pyspark.sql import functions as F
-from pyspark.sql.functions import isnan, when, count, col
-
 
 
 sources = ['idealista', 'lookup_tables', 'income_opendata', 'opendatabcn-incidents']
@@ -17,7 +16,7 @@ start = time.time()
 spark = SparkSession.builder.appName("LAB2").getOrCreate()
 
 
-def read_income_cols(data):
+def read_income_cols(data) -> pd.DataFrame:
     """This functions handles the read data regarding the income from opencatabcn. 
     Its purpose is to convert the json data in a way they are easily converted to dataframes later.
     The data were nested and had lists of dictionairies as values. 
@@ -45,7 +44,7 @@ def read_income_cols(data):
 
 
 
-def read_idealista_cols(df,f):
+def read_idealista_cols(df,f) -> pd.DataFrame:
     """This functions handles the read data regarding idealista. 
     More specifically it splits a dict value of two columns into multiple columns, with these columns being the keys and values of the originals, 
     since the values in the original were dictionairies.
@@ -105,7 +104,7 @@ def read_data(source: str) -> pd.DataFrame:
     return df
 
 
-def format(df):
+def format(df) -> DataFrame:
     """This functions formats the data and transforms them to spark dataframes. 
     It converts object columns to string, it checks and deletes fully duplicated rows, 
     checks for missing values and drops columns with more than 80% missing 
@@ -140,22 +139,70 @@ def format(df):
     return df_no_miss
 
 
+def _infer_neighborhood(df) -> DataFrame:
+    """ Infers the neighborhood based on the latitude and longitude and returns the BCN Open Data nomenclature.
+     In case its outside the neighborhood coordinates limit, obtains the open data bcn using the lookup table."""
+
+    # Read neighborhood coordinates delimitation
+    neig_coord = ( gpd.read_file("data/BCN_NEIGHBORHOODS/NEIGHBORHOODS_DELIMITATIONS.json")
+                        .query("TIPUS_UA == 'BARRI'").to_crs(crs=4326) )
+    
+    df_id.neighborhood = df_id.rdd.map(lambda x:_identify_neighborhood(x, neig_coord))
+    return df
 
 
+def _identify_neighborhood(df, neig_coord) -> str:
+    """ Assigns the neighboor that contains the given coordinate,
+    in the case it is outside the delimitation of the neighborhood,
+    assigns the nearest neighborhood. """
+    return neig_coord.iloc[neig_coord.sindex.nearest(Point(df["longitude"], df["latitude"]))[1][0]]["NOM"]
+
+
+def _select_columns(df, keep=[], drop=[]) -> DataFrame:
+    """Selects the desired columns of the dataframe"""
+    if keep:
+        return df[keep]
+    
+    elif drop:
+        return df.drop(*drop)
+    
+    return df
 
 
 if __name__ == "__main__":
     df_id = read_data('idealista')
-    format(df_id)
+    df_id = format(df_id)
 
     df_in = read_data("income_opendata")
-    format(df_in)
+    df_in["year"] += 5 # Patch to make tables join (Transform years from [2007-2017] to [2012-2022])
+    df_in = format(df_in)
 
     df_incid = read_data('opendatabcn-incidents')
-    format(df_incid)
+    df_incid = format(df_incid)
 
     df_l = read_data('lookup_tables')
-    format(df_l)
+    df_l = format(df_l)
+
+    ### Reconciliation
+    # Impute nan neighborhood with coordinates and unify BCN-OpenData Nomenclature
+    df_id = _infer_neighborhood(df_id)
+
+    # Select columns
+    df_id = _select_columns(df_id, drop=["date", "month"])
+    df_in = _select_columns(df_in, keep=["neigh_name", "year", "pop", "RFD"])
+    df_incid = _select_columns(df_incid, keep=["Codi Incident", "Descripció Incident", "Nom barri",
+                                               "NK any", "Número d'incidents GUB"])
+    
+    # Perform operations to aggregate everything at year level
+    df_incid = df_incid.groupby(["Codi Incident", "Descripció Incident", "Nom barri", "NK any"]).agg(F.sum("Número d'incidents GUB").alias("Número d'incidents GUB"))
+
+    # Left join idealista with income
+    df_merged = ( df_id.join(df_in, (df_id.neighborhood == df_in.neigh_name) & (df_id.year == df_in.year), "outer")
+                     .select(df_id["*"], df_in["pop"], df_in["RFD"]) )
+
+    # Left join with incidents
+    df_merged = ( df_merged.join(df_incid, (df_merged.neighborhood == df_incid["Nom barri"]) & (df_merged.year == df_incid["NK any"]), "outer")
+                         .select(df_merged["*"], df_incid["Codi Incident"], df_incid["Descripció Incident"], df_incid["Número d'incidents GUB"]) )
 
     end = time.time()
     print(end - start)
