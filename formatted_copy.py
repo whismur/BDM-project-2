@@ -3,6 +3,7 @@ import asyncio
 import os
 import json
 import pyspark
+import time
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.functions import isnan, when, count, col
@@ -12,7 +13,8 @@ from pyspark.sql.functions import isnan, when, count, col
 sources = ['idealista', 'lookup_tables', 'income_opendata', 'opendatabcn-incidents']
 pd.set_option('display.max_columns', None)
 # pd.set_option('display.max_rows', None)
-spark = SparkSession.builder.appName("LAB2").config("spark.memory.offHeap.enabled","true").config("spark.memory.offHeap.size","10g").getOrCreate()
+start = time.time()
+spark = SparkSession.builder.appName("LAB2").getOrCreate()
 
 
 def read_income_cols(data):
@@ -154,3 +156,9 @@ if __name__ == "__main__":
 
     df_l = read_data('lookup_tables')
     format(df_l)
+
+    end = time.time()
+    print(end - start)
+
+#520
+#657 with heap off
