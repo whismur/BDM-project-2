@@ -151,24 +151,6 @@ def _infer_neighborhood(df) -> DataFrame:
     return df
 
 
-def _identify_neighborhood(df, neig_coord) -> str:
-    """ Assigns the neighboor that contains the given coordinate,
-    in the case it is outside the delimitation of the neighborhood,
-    assigns the nearest neighborhood. """
-    return neig_coord.iloc[neig_coord.sindex.nearest(Point(df["longitude"], df["latitude"]))[1][0]]["NOM"]
-
-
-def _select_columns(df, keep=[], drop=[]) -> DataFrame:
-    """Selects the desired columns of the dataframe"""
-    if keep:
-        return df[keep]
-    
-    elif drop:
-        return df.drop(*drop)
-    
-    return df
-
-
 if __name__ == "__main__":
     df_id = read_data('idealista')
     df_id = format(df_id)
@@ -186,23 +168,6 @@ if __name__ == "__main__":
     ### Reconciliation
     # Impute nan neighborhood with coordinates and unify BCN-OpenData Nomenclature
     df_id = _infer_neighborhood(df_id)
-
-    # Select columns
-    df_id = _select_columns(df_id, drop=["date", "month"])
-    df_in = _select_columns(df_in, keep=["neigh_name", "year", "pop", "RFD"])
-    df_incid = _select_columns(df_incid, keep=["Codi Incident", "Descripció Incident", "Nom barri",
-                                               "NK any", "Número d'incidents GUB"])
-    
-    # Perform operations to aggregate everything at year level
-    df_incid = df_incid.groupby(["Codi Incident", "Descripció Incident", "Nom barri", "NK any"]).agg(F.sum("Número d'incidents GUB").alias("Número d'incidents GUB"))
-
-    # Left join idealista with income
-    df_merged = ( df_id.join(df_in, (df_id.neighborhood == df_in.neigh_name) & (df_id.year == df_in.year), "outer")
-                     .select(df_id["*"], df_in["pop"], df_in["RFD"]) )
-
-    # Left join with incidents
-    df_merged = ( df_merged.join(df_incid, (df_merged.neighborhood == df_incid["Nom barri"]) & (df_merged.year == df_incid["NK any"]), "outer")
-                         .select(df_merged["*"], df_incid["Codi Incident"], df_incid["Descripció Incident"], df_incid["Número d'incidents GUB"]) )
 
     end = time.time()
     print(end - start)
