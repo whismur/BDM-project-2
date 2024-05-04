@@ -151,6 +151,13 @@ def _infer_neighborhood(df) -> DataFrame:
     return df
 
 
+def _identify_neighborhood(df, neig_coord) -> str:
+    """ Assigns the neighboor that contains the given coordinate,
+    in the case it is outside the delimitation of the neighborhood,
+    assigns the nearest neighborhood. """
+    return neig_coord.iloc[neig_coord.sindex.nearest(Point(df["longitude"], df["latitude"]))[1][0]]["NOM"]
+
+
 if __name__ == "__main__":
     df_id = read_data('idealista')
     df_id = format(df_id)
