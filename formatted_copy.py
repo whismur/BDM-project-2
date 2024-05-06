@@ -85,19 +85,22 @@ def read_data(source: str) -> pd.DataFrame:
                     if source == 'income_opendata':
                         data = json.loads(j.read())
                         income = read_income_cols(data)
-                        df_inc = pd.DataFrame(income)
-                        return df_inc
+                        df.append(pd.DataFrame(income))
+
                     elif source == 'lookup_tables':
                         contents = json.loads(j.read())
-                        return pd.DataFrame.from_records(contents)
+                        df.append(pd.DataFrame.from_records(contents))
+
             elif f.endswith('.csv') and source=='opendatabcn-incidents':
-                    return pd.read_csv(path)
+                    df.append(pd.read_csv(path))
+
             else:
                 for fname in os.listdir(local_path + '/' + f):
                     if fname.endswith('.parquet'):
                         df_loop = pd.read_parquet(local_path + '/' + f + '/' + fname, engine='pyarrow')
                         df_loop["name"] = f
                         df.append(df_loop)
+                        
         except:
             print(f"Error occured")
     df = pd.concat(df, ignore_index=True)
@@ -175,7 +178,6 @@ def _select_columns(df, keep=[], drop=[]) -> DataFrame:
 
 def store_to_mongo(client, source, collection_name, df):
         db = client[source]
-        current_time = datetime.now()
         collection = db[collection_name]
         print(source)
         results = df.toJSON().map(lambda j: json.loads(j)).collect()
