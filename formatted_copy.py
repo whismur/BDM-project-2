@@ -74,14 +74,14 @@ def read_data(source: str) -> pd.DataFrame:
     the multiple files inside those folders are merged into one dataframe.
     For idealista it uses the read_idealista_cols for proper manipulation of some cols.
     """
-    local_path = f"BDM-project-2/data/{source}/"
-    local_path = f"data/{source}/"
+    local_path = f"BDM-project-2/data/{source}/"  #path for debugger
+    # local_path = f"data/{source}/"
     df = []
     for f in os.listdir(local_path):
         path = f"{local_path}{f}"
         try:
             if f.endswith('.json'):
-                with open(path, 'r') as j:
+                with open(path, 'r', encoding='utf-8') as j:
                     if source == 'income_opendata':
                         data = json.loads(j.read())
                         income = read_income_cols(data)
@@ -233,7 +233,7 @@ if __name__ == "__main__":
         time.sleep(2)
         store_to_mongo(client_mongo,'opendatabcn-incidents', df_incid)
         time.sleep(2)
-        client_mongo.close()
+        # client_mongo.close()
     except ConnectionResetError as e:
         print("ConnectionResetError occurred:", e)
     # Print additional information or perform error handling specific to this error
