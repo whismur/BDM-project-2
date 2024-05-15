@@ -85,19 +85,22 @@ def read_data(source: str) -> pd.DataFrame:
                     if source == 'income_opendata':
                         data = json.loads(j.read())
                         income = read_income_cols(data)
-                        df_inc = pd.DataFrame(income)
-                        return df_inc
+                        df.append(pd.DataFrame(income))
+
                     elif source == 'lookup_tables':
                         contents = json.loads(j.read())
-                        return pd.DataFrame.from_records(contents)
+                        df.append(pd.DataFrame.from_records(contents))
+
             elif f.endswith('.csv') and source=='opendatabcn-incidents':
-                    return pd.read_csv(path)
+                    df.append(pd.read_csv(path))
+
             else:
                 for fname in os.listdir(local_path + '/' + f):
                     if fname.endswith('.parquet'):
                         df_loop = pd.read_parquet(local_path + '/' + f + '/' + fname, engine='pyarrow')
                         df_loop["name"] = f
                         df.append(df_loop)
+                        
         except:
             print(f"Error occured")
     df = pd.concat(df, ignore_index=True)
@@ -173,10 +176,8 @@ def _select_columns(df, keep=[], drop=[]) -> DataFrame:
     return df
 
 
-def store_to_mongo(client, source, df):
+def store_to_mongo(client, source, collection_name, df):
         db = client[source]
-        current_time = datetime.now()
-        collection_name = source + "-" + current_time.strftime("%Y-%m-%dT%H:%M:%S")
         collection = db[collection_name]
         print(source)
         results = df.toJSON().map(lambda j: json.loads(j)).collect()
@@ -225,13 +226,13 @@ if __name__ == "__main__":
     # Set up the 
     try:
         client_mongo = pymongo.MongoClient("mongodb+srv://alextrem:1234@cluster0.x1yh6no.mongodb.net/?retryWrites=true&w=majority")
-        store_to_mongo(client_mongo,'idealista', df_id)
+        store_to_mongo(client_mongo,'all', "idealista", df_id)
         time.sleep(2)
-        store_to_mongo(client_mongo,'lookup_tables', df_l)
+        store_to_mongo(client_mongo,'all', "lookup_tables", df_l)
         time.sleep(2)
-        store_to_mongo(client_mongo,'income_opendata', df_in)
+        store_to_mongo(client_mongo,'all', "income", df_in)
         time.sleep(2)
-        store_to_mongo(client_mongo,'opendatabcn-incidents', df_incid)
+        store_to_mongo(client_mongo,'all', "incidents", df_incid)
         time.sleep(2)
         # client_mongo.close()
     except ConnectionResetError as e:
