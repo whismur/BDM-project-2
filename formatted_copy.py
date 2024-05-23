@@ -195,6 +195,8 @@ if __name__ == "__main__":
     df_in = format(df_in)
 
     df_incid = read_data('opendatabcn-incidents')
+    # add 7 years as well in NK any col
+    # df_in["NK any"] += 7
     df_incid = format(df_incid)
 
     df_l = read_data('lookup_tables')
