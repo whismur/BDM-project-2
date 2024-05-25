@@ -8,8 +8,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql import functions as F
 import pymongo
-import shutil
-from datetime import datetime
+import logging
 
 
 sources = ['idealista', 'lookup_tables', 'income_opendata', 'opendatabcn-incidents']
@@ -18,6 +17,7 @@ pd.set_option('display.max_columns', None)
 start = time.time()
 spark = SparkSession.builder.appName("LAB2").getOrCreate()
 
+logging.getLogger().setLevel(logging.INFO)
 
 def read_income_cols(data) -> pd.DataFrame:
     """This functions handles the read data regarding the income from opencatabcn. 
@@ -74,8 +74,8 @@ def read_data(source: str) -> pd.DataFrame:
     the multiple files inside those folders are merged into one dataframe.
     For idealista it uses the read_idealista_cols for proper manipulation of some cols.
     """
-    local_path = f"BDM-project-2/data/{source}/"  #path for debugger
-    # local_path = f"data/{source}/"
+    #local_path = f"BDM-project-2/data/{source}/"  #path for debugger
+    local_path = f"data/{source}/"
     df = []
     for f in os.listdir(local_path):
         path = f"{local_path}{f}"
@@ -92,7 +92,22 @@ def read_data(source: str) -> pd.DataFrame:
                         df.append(pd.DataFrame.from_records(contents))
 
             elif f.endswith('.csv') and source=='opendatabcn-incidents':
-                    df.append(pd.read_csv(path))
+                    # After 2016 column names change,
+                    # make all equal
+                    incid = pd.read_csv(path).rename(columns={"Codi Incident": "Codi_Incident",
+                                                              "Descripció Incident": "Descripcio_Incident",
+                                                              "Codi districte": "Codi_districte",
+                                                              "Nom districte": "Nom_districte",
+                                                              "Codi barri": "Codi_barri",
+                                                              "Nom barri": "Nom_barri",
+                                                              "NK Any": "NK_Any",
+                                                              "Mes de any": "Mes_any",
+                                                              "Nom mes": "Nom_mes",
+                                                              "Número d'incidents GUB": "Numero_incidents_GUB"})
+                    
+                    if pd.api.types.is_string_dtype(incid["NK_Any"]):
+                        incid["NK_Any"] = incid["NK_Any"].astype(int)
+                    df.append(incid)
 
             else:
                 for fname in os.listdir(local_path + '/' + f):
@@ -102,7 +117,7 @@ def read_data(source: str) -> pd.DataFrame:
                         df.append(df_loop)
                         
         except:
-            print(f"Error occured")
+            logging.critical(f"Error ocurred while reading {f} data.")
     df = pd.concat(df, ignore_index=True)
     if source == 'idealista':
         df = read_idealista_cols(df,f)
@@ -154,8 +169,10 @@ def _infer_neighborhood(df) -> DataFrame:
     neig_coord = ( gpd.read_file("data/BCN_NEIGHBORHOODS/NEIGHBORHOODS_DELIMITATIONS.json")
                         .query("TIPUS_UA == 'BARRI'").to_crs(crs=4326) )
     
-    df_id.neighborhood = df_id.rdd.map(lambda x:_identify_neighborhood(x, neig_coord))
-    return df
+    # Assign new column with imputed neighborhood using pandas structure
+    pandas_df = df.toPandas()
+    pandas_df["neighborhood"] = pandas_df.apply(lambda x: _identify_neighborhood(x, neig_coord), axis=1)
+    return spark.createDataFrame(pandas_df)
 
 
 def _identify_neighborhood(df, neig_coord) -> str:
@@ -179,7 +196,6 @@ def _select_columns(df, keep=[], drop=[]) -> DataFrame:
 def store_to_mongo(client, source, collection_name, df):
         db = client[source]
         collection = db[collection_name]
-        print(source)
         results = df.toJSON().map(lambda j: json.loads(j)).collect()
         for res in results:
             collection.insert_one(res)
@@ -187,61 +203,74 @@ def store_to_mongo(client, source, collection_name, df):
 
 
 if __name__ == "__main__":
-    df_id = read_data('idealista')
-    df_id = format(df_id)
 
+    logging.info("Starting Extraction and Formatting of data from Landing zone.")
+
+    logging.info("Extracting idealista data.")
+    df_id = read_data('idealista')
+    logging.info("Formatting idealista data.")
+    df_id = format(df_id)
+    df_id = _select_columns(df_id, drop=["date", "month"])
+
+    logging.info("Extracting income data.")
     df_in = read_data("income_opendata")
     df_in["year"] += 5 # Patch to make tables join (Transform years from [2007-2017] to [2012-2022])
+    logging.info("Formatting income data.")
     df_in = format(df_in)
+    df_in = _select_columns(df_in, keep=["neigh_name", "year", "pop", "RFD"])
 
+    logging.info("Extracting incidents data.")
     df_incid = read_data('opendatabcn-incidents')
-    # add 7 years as well in NK any col
-    # df_in["NK any"] += 7
+    logging.info("Formatting incidents data.")
     df_incid = format(df_incid)
+    df_incid = _select_columns(df_incid, keep=["Codi_Incident", "Descripcio_Incident", "Nom_barri",
+                                               "NK_Any", "Numero_incidents_GUB"])
+    df_incid = df_incid.groupby(["Codi_Incident", "Descripcio_Incident", "Nom_barri", "NK_Any"]).agg(F.sum("Numero_incidents_GUB").alias("Numero_incidents_GUB"))
 
+    logging.info("Extracting lookup tables.")
     df_l = read_data('lookup_tables')
+    logging.info("Formatting lookup tables.")
     df_l = format(df_l)
 
-    ### Reconciliation
-    # Impute nan neighborhood with coordinates and unify BCN-OpenData Nomenclature
+    logging.info("Finished reading and formatting data.")
+
+
+    logging.info("Starting the reconciliation.")
+    logging.info("Imputing NaN idealista neighborhood using coordinates while using the BCN-OpenData Nomenclature.")
     df_id = _infer_neighborhood(df_id)
+    logging.info("Finished reconciliation.")
 
-    # Select columns
-    df_id = _select_columns(df_id, drop=["date", "month"])
-    df_in = _select_columns(df_in, keep=["neigh_name", "year", "pop", "RFD"])
-    df_incid = _select_columns(df_incid, keep=["Codi Incident", "Descripció Incident", "Nom barri",
-                                               "NK any", "Número d'incidents GUB"])
-    
-    # Perform operations to aggregate everything at year level
-    df_incid = df_incid.groupby(["Codi Incident", "Descripció Incident", "Nom barri", "NK any"]).agg(F.sum("Número d'incidents GUB").alias("Número d'incidents GUB"))
-
-    # # Left join idealista with income
-    # df_merged = ( df_id.join(df_in, (df_id.neighborhood == df_in.neigh_name) & (df_id.year == df_in.year), "outer")
-    #                  .select(df_id["*"], df_in["pop"], df_in["RFD"]) )
-
-    # # Left join with incidents
-    # df_merged = ( df_merged.join(df_incid, (df_merged.neighborhood == df_incid["Nom barri"]) & (df_merged.year == df_incid["NK any"]), "outer")
-    #                      .select(df_merged["*"], df_incid["Codi Incident"], df_incid["Descripció Incident"], df_incid["Número d'incidents GUB"]) )
-
-
-
-    # Set up the 
+    logging.info("Starting uploading data to formatted zone.")
     try:
         client_mongo = pymongo.MongoClient("mongodb+srv://alextrem:1234@cluster0.x1yh6no.mongodb.net/?retryWrites=true&w=majority")
+        
+        logging.info("Starting uploading idealista data.")
         store_to_mongo(client_mongo,'all', "idealista", df_id)
+        logging.info("Successfully uploaded idealista data.")
         time.sleep(2)
-        store_to_mongo(client_mongo,'all', "lookup_tables", df_l)
-        time.sleep(2)
-        store_to_mongo(client_mongo,'all', "income", df_in)
-        time.sleep(2)
-        store_to_mongo(client_mongo,'all', "incidents", df_incid)
-        time.sleep(2)
-        # client_mongo.close()
-    except ConnectionResetError as e:
-        print("ConnectionResetError occurred:", e)
-    # Print additional information or perform error handling specific to this error
-    except Exception as e:
-        print("An unexpected error occurred:", e)
 
-    end = time.time()
-    print(end - start)
+        logging.info("Starting uploading lookup tables.")
+        store_to_mongo(client_mongo,'all', "lookup_tables", df_l)
+        logging.info("Successfully uploaded lookup tables.")
+        time.sleep(2)
+
+        logging.info("Starting uploading income data.")
+        store_to_mongo(client_mongo,'all', "income", df_in)
+        logging.info("Successfully uploaded income data.")
+        time.sleep(2)
+
+        logging.info("Starting uploading incidents data.")
+        store_to_mongo(client_mongo,'all', "incidents", df_incid)
+        logging.info("Successfully uploaded incidents data.")
+        time.sleep(2)
+        client_mongo.close()
+
+        logging.info("All data has been successfuly uploaded to formatted zone.")
+
+        exec_time = time.time() - start
+        logging.info(f"Full execution time of {exec_time} seconds.")
+
+    except ConnectionResetError as e:
+        logging.critical(f"ConnectionResetError ocurred: {e}.")
+    except Exception as e:
+        logging.critical(f"An unexpected error occurred: {e}.")
