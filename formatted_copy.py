@@ -47,19 +47,15 @@ def read_income_cols(data) -> pd.DataFrame:
 
 
 
-def read_idealista_cols(df,f) -> pd.DataFrame:
+def read_idealista_cols(df) -> pd.DataFrame:
     """This functions handles the read data regarding idealista. 
     More specifically it splits a dict value of two columns into multiple columns, with these columns being the keys and values of the originals, 
     since the values in the original were dictionairies.
-    It also creates more columns regarding the date, month and year, with this information taken from the file name
     """
     if 'detailedType' in df.columns:
         df = pd.concat([df.drop(['detailedType'], axis=1), df['detailedType'].apply(pd.Series)], axis=1)  # splitting a dict value of column into multiple columns
     if 'suggestedTexts' in df.columns:
-        df = pd.concat([df.drop(['suggestedTexts'], axis=1), df['suggestedTexts'].apply(pd.Series)], axis=1) 
-    df["date"] = pd.to_datetime(f"{f[0:10]}", format="%Y_%m_%d")
-    df["month"] = df["date"].dt.month
-    df["year"] = df["date"].dt.year
+        df = pd.concat([df.drop(['suggestedTexts'], axis=1), df['suggestedTexts'].apply(pd.Series)], axis=1)
     return df
 
 
@@ -114,13 +110,16 @@ def read_data(source: str) -> pd.DataFrame:
                     if fname.endswith('.parquet'):
                         df_loop = pd.read_parquet(local_path + '/' + f + '/' + fname, engine='pyarrow')
                         df_loop["name"] = f
+                        df_loop["date"] = pd.to_datetime(f"{f[0:10]}", format="%Y_%m_%d")
+                        df_loop["month"] = df_loop["date"].dt.month
+                        df_loop["year"] = df_loop["date"].dt.year
                         df.append(df_loop)
-                        
+
         except:
             logging.critical(f"Error ocurred while reading {f} data.")
     df = pd.concat(df, ignore_index=True)
     if source == 'idealista':
-        df = read_idealista_cols(df,f)
+        df = read_idealista_cols(df)
 
     return df
 
