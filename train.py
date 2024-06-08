@@ -35,6 +35,14 @@ def retrieve_data(client):
     df.drop(['_id'], axis=1, inplace=True)
     return df
 
+def load_mlflow_model(model_name, model_version, data):
+    # Load the model from the Model Registry
+    model = mlflow.spark.load_model(f"models:/{model_name}/{model_version}")
+    # Predict
+    preds = model.transform(data)
+    preds.select("prediction", "price", "features").show(5)
+
+
 def main():
     init_time = time.time()
     logging.info("Initializing training module.")

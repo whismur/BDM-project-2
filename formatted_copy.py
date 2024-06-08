@@ -133,14 +133,10 @@ def format(df) -> DataFrame:
     """
     for col in df.select_dtypes(include='object'):
         df[col] = df[col].astype(str)
-    # df = df[~df.astype(str).duplicated()]
     df_sp = spark.createDataFrame(df)
-    #print((df_sp.count(), len(df_sp.columns)))
-    # print(df_sp.show(10,0))
     df_no_dupl = df_sp.drop_duplicates()
 
 
-    # str_column_list = [item[0] for item in df_no_dupl.dtypes if item[1].startswith('string')]
     nof_rows = df_no_dupl.count()
     cols_drop = []
     for c in df_no_dupl.columns:
@@ -148,7 +144,6 @@ def format(df) -> DataFrame:
         if count_na/nof_rows > 0.8:
             cols_drop.append(c)
     df_no_miss = df_no_dupl.drop(*cols_drop)
-    # print((df_no_miss.count(), len(df_no_miss.columns)))
 
     if '_id' in df_no_miss.columns:
         counter_all = df_no_miss.count()
@@ -157,7 +152,6 @@ def format(df) -> DataFrame:
             return df_no_miss.drop_duplicates(subset=['_id'])           
 
     return df_no_miss
-    # return df_sp
 
 
 def _infer_neighborhood(df) -> DataFrame:
