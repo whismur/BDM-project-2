@@ -18,6 +18,7 @@ start = time.time()
 spark = SparkSession.builder.appName("LAB2").getOrCreate()
 
 logging.getLogger().setLevel(logging.INFO)
+logging.basicConfig(filename='logs/formatted.log', filemode='w', format='%(asctime)s - %(levelname)s - %(message)s')
 
 def read_income_cols(data) -> pd.DataFrame:
     """This functions handles the read data regarding the income from opencatabcn. 

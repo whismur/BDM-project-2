@@ -18,6 +18,7 @@ import mlflow.sklearn
 
 
 logging.getLogger().setLevel(logging.INFO)
+logging.basicConfig(filename='logs/train.log', filemode='w', format='%(asctime)s - %(levelname)s - %(message)s')
 
 def create_spark_session():
     sc = SparkContext()
@@ -125,12 +126,7 @@ def main():
             mlflow.log_param("rf_num_trees", rf_best_model.getNumTrees())
             mlflow.log_param("rf_max_depth", rf_best_model.getMaxDepth())
             mlflow.log_metric("rf_rmse", rmse_rf)
-            logging.info("Store the model in MLflow.")
-            # Save the model
-            # try:
-            #     mlflow.spark.log_model(model.stages[-1], "random_forest_model")
-            # except Exception as e:
-            #     logging.error(f"An error occurred during model logging: {e}")
+            logging.info("Storing the model in MLflow.")
 
             # Log Decision Tree model parameters and metrics
             mlflow.log_param("dt_max_depth", dt_best_model.getMaxDepth())

@@ -1,0 +1,23 @@
+2024-06-14 21:10:25,401 - INFO - Starting Extraction and Formatting of data from Landing zone.
+2024-06-14 21:19:17,783 - INFO - Extracting idealista data.
+2024-06-14 21:19:21,179 - INFO - Formatting idealista data.
+2024-06-14 21:19:27,513 - INFO - Extracting income data.
+2024-06-14 21:19:31,461 - INFO - Formatting income data.
+2024-06-14 21:19:34,752 - INFO - Extracting incidents data.
+2024-06-14 21:19:38,038 - INFO - Formatting incidents data.
+2024-06-14 21:19:42,178 - INFO - Extracting lookup tables.
+2024-06-14 21:19:45,294 - INFO - Formatting lookup tables.
+2024-06-14 21:19:53,135 - INFO - Finished reading and formatting data.
+2024-06-14 21:19:53,136 - INFO - Starting the reconciliation.
+2024-06-14 21:19:53,136 - INFO - Imputing NaN idealista neighborhood using coordinates while using the BCN-OpenData Nomenclature.
+2024-06-14 21:19:56,951 - INFO - Finished reconciliation.
+2024-06-14 21:20:00,135 - INFO - Starting uploading data to formatted zone.
+2024-06-14 21:20:04,379 - INFO - Starting uploading idealista data.
+2024-06-14 21:20:08,045 - INFO - Successfully uploaded idealista data.
+2024-06-14 21:20:11,325 - INFO - Starting uploading lookup tables.
+2024-06-14 21:20:15,974 - INFO - Successfully uploaded lookup tables.
+2024-06-14 21:20:19,316 - INFO - Starting uploading income data.
+2024-06-14 21:20:23,327 - INFO - Successfully uploaded income data.
+2024-06-14 21:20:28,389 - INFO - Starting uploading incidents data.
+2024-06-14 21:20:32,627 - INFO - Successfully uploaded incidents data.
+2024-06-14 21:20:36,181 - INFO - All data has been successfuly uploaded to formatted zone.

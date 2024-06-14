@@ -1,0 +1,25 @@
+2024-06-14 21:46:23,702 - INFO - Initializing training module.
+2024-06-14 21:46:44,681 - INFO - Retrieving data from exploitation zone.
+2024-06-14 21:47:03,600 - INFO - Successfully retrieved data from exploitation zone.
+2024-06-14 21:47:03,600 - INFO - Beginning defining the Model Pipeline.
+2024-06-14 21:48:23,772 - INFO - Finished defining the Model Pipeline.
+2024-06-14 21:48:23,772 - INFO - Beginning splitting the data into train and test.
+2024-06-14 21:48:23,888 - INFO - Successfully split the data into train and test.
+2024-06-14 21:48:23,889 - INFO - Beginning hyperparameter tuning.
+2024-06-14 21:54:04,987 - INFO - Closing down clientserver connection
+2024-06-14 21:54:04,989 - INFO - Closing down clientserver connection
+2024-06-14 21:58:24,636 - INFO - Closing down clientserver connection
+2024-06-14 21:58:24,638 - INFO - Closing down clientserver connection
+2024-06-14 21:58:24,640 - INFO - Finished hyperparameter tuning.
+2024-06-14 21:58:24,641 - INFO - Random Forest - Selected number of trees: 20
+2024-06-14 21:58:24,642 - INFO - Random Forest - Selected max depth: 10
+2024-06-14 21:58:24,644 - INFO - Decision Tree - Selected max depth: 10
+2024-06-14 21:58:24,645 - INFO - Evaluating models on the test set.
+2024-06-14 21:59:03,099 - INFO - Random Forest RMSE (test data): 151365.25985251847
+2024-06-14 21:59:03,101 - INFO - Decision Tree RMSE (test data): 378206.3467072607
+2024-06-14 21:59:03,102 - INFO - Selected best model: Random Forest
+2024-06-14 21:59:03,103 - INFO - Saving the best model.
+2024-06-14 21:59:03,103 - INFO - Finished training module successfully in 759.4024002552032 seconds.
+2024-06-14 21:59:03,104 - INFO - Starting MLflow run.
+2024-06-14 21:59:20,450 - INFO - Storing the model in MLflow.
+2024-06-14 21:59:26,522 - INFO - Models and parameters logged to MLflow.
