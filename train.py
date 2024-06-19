@@ -127,6 +127,13 @@ def main():
             mlflow.log_param("rf_max_depth", rf_best_model.getMaxDepth())
             mlflow.log_metric("rf_rmse", rmse_rf)
             logging.info("Storing the model in MLflow.")
+            logging.info("Store the model in MLflow.")
+            
+            # Save the model
+            # try:
+            #     mlflow.spark.log_model(model.stages[-1], "random_forest_model")
+            # except Exception as e:
+            #     logging.error(f"An error occurred during model logging: {e}")
 
             # Log Decision Tree model parameters and metrics
             mlflow.log_param("dt_max_depth", dt_best_model.getMaxDepth())
